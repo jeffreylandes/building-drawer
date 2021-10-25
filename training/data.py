@@ -9,10 +9,10 @@ from torch.utils.data import Dataset
 
 
 BUFFER = 0.006
+IMG_SHAPE = 800
 
 
 # TODO: Remove corners
-# TODO: Standardize angle
 # TODO: Delete building that aren't *within* bounds
 # TODO: Figure out how to close figures
 
@@ -21,13 +21,16 @@ def plot_and_get_data(geometry: gpd.GeoSeries):
     geometry.plot(figsize=(8, 8), markersize=1)
     plt.axis('off')
     plt.savefig('/tmp/geometry.png')
-    plt.close()
+    plt.close('all')
     img = Image.open('/tmp/geometry.png')
     data = np.array(img)
     return data
 
 
-# TODO: Remove corners
+def standardize_direction(direction: float):
+    return (direction - -180) / 360
+
+
 def plot_geometry(geometry: gpd.GeoSeries, corners: gpd.GeoSeries):
     all_geometry = corners.append(geometry)
     all_geometry_data = plot_and_get_data(all_geometry)
@@ -101,10 +104,11 @@ class BuildingData(Dataset):
             x_src, y_src = coords[coordinate_index]
             x_dst, y_dst = coords[coordinate_index + 1]
             direction = np.arctan2(y_dst - y_src, x_dst - x_src) * 180 / np.pi
-            target = [distance, direction, 0]
+            standardized_direction = standardize_direction(direction)
+            target = [distance, standardized_direction, 0]
             mask = [1, 1, 0]
 
-        site = np.zeros((3, 800, 800))
+        site = np.zeros((3, IMG_SHAPE, IMG_SHAPE))
         site[0] = buildings[:, :, 0]
         site[1] = single_building[:, :, 0]
         site[2] = starting_point[:, :, 0]
@@ -116,10 +120,3 @@ class BuildingData(Dataset):
         }
 
         return data_item
-
-
-if __name__ == "__main__":
-    data = BuildingData()
-    for i in range(100):
-        data[np.random.randint(len(data))]
-    print("done")
