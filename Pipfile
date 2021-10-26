@@ -12,9 +12,11 @@ geopandas = "*"
 torch = "==1.9.0"
 
 [dev-packages]
-matplotlib = "*"
-jupyter = "*"
 notebook = "*"
+jupyterlab = "*"
+matplotlib = "*"
+ipykernel = "*"
+yoyo-migrations = "*"
 
 [requires]
 python_version = "3.9"

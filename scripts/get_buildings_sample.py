@@ -14,7 +14,7 @@ def main():
     polygons = []
     for i, element in enumerate(elements):
         geometry = element["geometry"]
-        coords = [(coordinate['lat'], coordinate['lon']) for coordinate in geometry]
+        coords = [(coordinate["lat"], coordinate["lon"]) for coordinate in geometry]
         building_polygon = Polygon(coords)
         polygons.append(building_polygon)
         if i > 5:

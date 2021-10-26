@@ -1,4 +1,6 @@
 import math
+from dataclasses import dataclass
+from typing import Tuple
 
 import geopandas as gpd
 import matplotlib.pyplot as plt
@@ -8,23 +10,26 @@ from shapely.geometry import Polygon, Point, LineString
 from torch.utils.data import Dataset
 
 
-BUFFER = 0.006
-IMG_SHAPE = 800
+BUFFER = 0.002
+IMG_SHAPE = 576
 
 
-# TODO: Remove corners
-# TODO: Delete building that aren't *within* bounds
-# TODO: Figure out how to close figures
+@dataclass(frozen=True)
+class BBox:
+    lat_min: float
+    lon_min: float
+    lat_max: float
+    lon_max: float
 
 
 def plot_and_get_data(geometry: gpd.GeoSeries):
     geometry.plot(figsize=(8, 8), markersize=1)
-    plt.axis('off')
-    plt.savefig('/tmp/geometry.png')
-    plt.close('all')
-    img = Image.open('/tmp/geometry.png')
+    plt.axis("off")
+    plt.savefig("/tmp/geometry.png")
+    plt.close("all")
+    img = Image.open("/tmp/geometry.png")
     data = np.array(img)
-    return data
+    return data[:, :, 0].astype(float)
 
 
 def standardize_direction(direction: float):
@@ -49,17 +54,33 @@ def get_bbox_from_center_point(polygon: Polygon):
     center_lat, center_lon = list(center_point)[0]
     lat_min, lat_max = center_lat - BUFFER, center_lat + BUFFER
     lon_min, lon_max = center_lon - BUFFER, center_lon + BUFFER
-    return lat_min, lon_min, lat_max, lon_max
+    return BBox(lat_min=lat_min, lon_min=lon_min, lat_max=lat_max, lon_max=lon_max)
+
+
+def get_final_bounding_box(bounding_box: BBox, data_bounds: Tuple[float]):
+    data_lat_min, data_lon_min, data_lat_max, data_lon_max = data_bounds
+    lat_min = min(bounding_box.lat_min, data_lat_min)
+    lat_max = max(bounding_box.lat_max, data_lat_max)
+    lon_min = min(bounding_box.lon_min, data_lon_min)
+    lon_max = max(bounding_box.lon_max, data_lon_max)
+    return BBox(
+        lat_min=lat_min,
+        lon_min=lon_min,
+        lat_max=lat_max,
+        lon_max=lon_max
+    )
 
 
 class BuildingData(Dataset):
-
-    def __init__(self, path="../data/buildings.shp"):
+    def __init__(self, path="../data/sample.shp"):
 
         self.data = gpd.read_file(path)
         self.data_items = []
         for geometry_index, geometry in enumerate(self.data.geometry):
-            items = [(geometry_index, coordinate_index) for coordinate_index in range(len(geometry.exterior.coords))]
+            items = [
+                (geometry_index, coordinate_index)
+                for coordinate_index in range(len(geometry.exterior.coords))
+            ]
             self.data_items.extend(items)
 
     def __len__(self):
@@ -69,32 +90,41 @@ class BuildingData(Dataset):
         geometry_index, coordinate_index = self.data_items[item]
         building = self.data.iloc[geometry_index]
         building_polygon: Polygon = building.geometry
-        lat_min, lon_min, lat_max, lon_max = get_bbox_from_center_point(building_polygon)
-        intersecting_buildings = self.data.cx[lat_min: lat_max, lon_min: lon_max].copy()
+        initial_bounding_box = get_bbox_from_center_point(building_polygon)
+        intersecting_buildings = self.data.cx[
+            initial_bounding_box.lat_min : initial_bounding_box.lat_max,
+            initial_bounding_box.lon_min : initial_bounding_box.lon_max,
+        ].copy()
+        final_bounding_box = get_final_bounding_box(initial_bounding_box, intersecting_buildings.total_bounds)
 
         keep_percentage = get_keep_percentage()
-        kept_buildings = intersecting_buildings.sample(frac=keep_percentage, replace=False)
-        kept_buildings.plot()
+        kept_buildings = intersecting_buildings.sample(
+            frac=keep_percentage, replace=False
+        )
 
-        intersection_minus_building = intersecting_buildings[intersecting_buildings.id != building.id]
+        intersection_minus_building = kept_buildings[kept_buildings.id != building.id]
 
         corner_points = [
-            Point(lat_min, lon_min),
-            Point(lat_min, lon_max),
-            Point(lat_max, lon_max),
-            Point(lat_max, lon_min)
+            Point(final_bounding_box.lat_min, final_bounding_box.lon_min),
+            Point(final_bounding_box.lat_min, final_bounding_box.lon_max),
+            Point(final_bounding_box.lat_max, final_bounding_box.lon_max),
+            Point(final_bounding_box.lat_max, final_bounding_box.lon_min),
         ]
         corners = gpd.GeoSeries(corner_points)
+        corners_plot = plot_geometry(corners, corners)
         coords = list(building_polygon.exterior.coords)
         start_point = gpd.GeoSeries(Point(coords[coordinate_index]))
 
         buildings = plot_geometry(intersection_minus_building.geometry, corners)
+        buildings = np.where(buildings != corners_plot, buildings, 0)
         if coordinate_index > 0:
-            first_lines = gpd.GeoSeries(LineString(coords[:3]))
+            first_lines = gpd.GeoSeries(LineString(coords[: coordinate_index + 1]))
             single_building = plot_geometry(first_lines, corners)
         else:
             single_building = np.zeros_like(buildings)
+        single_building = np.where(single_building != corners_plot, single_building, 0)
         starting_point = plot_geometry(start_point, corners)
+        starting_point = np.where(starting_point != corners_plot, starting_point, 0)
 
         if coordinate_index == len(coords) - 1:
             target = [0, 0, 1]
@@ -109,14 +139,10 @@ class BuildingData(Dataset):
             mask = [1, 1, 0]
 
         site = np.zeros((3, IMG_SHAPE, IMG_SHAPE))
-        site[0] = buildings[:, :, 0]
-        site[1] = single_building[:, :, 0]
-        site[2] = starting_point[:, :, 0]
+        site[0] = buildings
+        site[1] = single_building
+        site[2] = starting_point
 
-        data_item = {
-            "site": site,
-            "target": target,
-            "target_mask": mask
-        }
+        data_item = {"site": site, "target": target, "target_mask": mask}
 
         return data_item

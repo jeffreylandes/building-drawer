@@ -38,7 +38,9 @@ def main():
                 if "geometry" not in element:
                     continue
                 geometry = element["geometry"]
-                coords = [(coordinate['lon'], coordinate['lat']) for coordinate in geometry]
+                coords = [
+                    (coordinate["lon"], coordinate["lat"]) for coordinate in geometry
+                ]
                 try:
                     building_polygon = Polygon(coords)
                     data_items["id"].append(str(uuid4()))
