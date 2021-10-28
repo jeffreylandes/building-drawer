@@ -11,7 +11,7 @@ from torch.utils.data import Dataset
 
 
 BUFFER = 0.002
-IMG_SHAPE = 576
+IMG_SHAPE = 800
 
 
 @dataclass(frozen=True)
@@ -57,7 +57,7 @@ def get_bbox_from_center_point(polygon: Polygon):
     return BBox(lat_min=lat_min, lon_min=lon_min, lat_max=lat_max, lon_max=lon_max)
 
 
-def get_final_bounding_box(bounding_box: BBox, data_bounds: Tuple[float]):
+def get_final_bounding_box(bounding_box: BBox, data_bounds: Tuple[float, float, float, float]):
     data_lat_min, data_lon_min, data_lat_max, data_lon_max = data_bounds
     lat_min = min(bounding_box.lat_min, data_lat_min)
     lat_max = max(bounding_box.lat_max, data_lat_max)
@@ -72,7 +72,7 @@ def get_final_bounding_box(bounding_box: BBox, data_bounds: Tuple[float]):
 
 
 class BuildingData(Dataset):
-    def __init__(self, path="../data/sample.shp"):
+    def __init__(self, path="data/buildings.shp"):
 
         self.data = gpd.read_file(path)
         self.data_items = []
@@ -146,3 +146,13 @@ class BuildingData(Dataset):
         data_item = {"site": site, "target": target, "target_mask": mask}
 
         return data_item
+
+
+if __name__ == "__main__":
+    from utils.plot import plot_sample
+    data = BuildingData()
+    print(f"{len(data)} number of samples")
+    for i in range(10):
+        sample = data[np.random.randint(len(data))]
+        plot_sample(sample)
+        print(sample["target"])
