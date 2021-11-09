@@ -1,11 +1,10 @@
-import math
-
 import geopandas as gpd
 import numpy as np
 from shapely.geometry import Polygon, Point, LineString
 from torch.utils.data import Dataset
 
-from training.data_utils import (
+from training.utils.data_utils import (
+    dist,
     get_bbox_from_center_point,
     get_final_bounding_box,
     get_keep_percentage,
@@ -17,7 +16,7 @@ from training.data_utils import (
 
 
 class BuildingData(Dataset):
-    def __init__(self, path="data/sample.shp"):
+    def __init__(self, path="/app/data/sample/sample.shp"):
 
         self.data = gpd.read_file(path)
         print("Loaded geopandas dataset")
@@ -70,10 +69,11 @@ class BuildingData(Dataset):
             single_building_plot = np.zeros_like(buildings_plot)
 
         if coordinate_index == len(building_coordinates) - 2:
-            target = np.array([0, 0, 1])
+            distance_normalized = 0.0
+            standardized_direction = 0.0
             mask = np.array([0, 0, 1])
         else:
-            distance = math.dist(
+            distance = dist(
                 building_coordinates[coordinate_index],
                 building_coordinates[coordinate_index + 1],
             )
@@ -82,7 +82,6 @@ class BuildingData(Dataset):
             x_dst, y_dst = building_coordinates[coordinate_index + 1]
             direction = np.arctan2(y_dst - y_src, x_dst - x_src) * 180 / np.pi
             standardized_direction = standardize_direction(direction)
-            target = np.array([distance_normalized, standardized_direction, 0])
             mask = np.array([1, 1, 0])
 
         site = np.zeros((3, IMG_SHAPE, IMG_SHAPE))
@@ -92,7 +91,8 @@ class BuildingData(Dataset):
 
         data_item = {
             "site": site.astype(np.float32),
-            "target": target.astype(np.float32),
+            "distance": float(distance_normalized),
+            "direction": float(standardized_direction),
             "target_mask": mask.astype(np.float32),
         }
 
