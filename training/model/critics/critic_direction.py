@@ -1,31 +1,12 @@
-from torch.nn import Module, Sequential, Conv2d, BatchNorm2d, ReLU, MaxPool2d, Linear
+import torch
+from torch.nn import Module, Sequential, ReLU, MaxPool2d, Linear
+
+from training.model.layers import CNNBlock
 
 
-class CNNBlock(Module):
-    def __init__(
-        self, in_channels, out_channels, kernel_size, stride, padding, activation=ReLU()
-    ):
-        super(CNNBlock, self).__init__()
-
-        self.layer = Sequential(
-            Conv2d(
-                in_channels=in_channels,
-                out_channels=out_channels,
-                kernel_size=kernel_size,
-                stride=stride,
-                padding=padding,
-            ),
-            BatchNorm2d(out_channels),
-            activation,
-        )
-
-    def forward(self, x):
-        return self.layer(x)
-
-
-class CNN(Module):
+class CriticDirection(Module):
     def __init__(self):
-        super(CNN, self).__init__()
+        super(CriticDirection, self).__init__()
 
         self.cnn_layers = Sequential(
             CNNBlock(in_channels=3, out_channels=5, kernel_size=7, stride=1, padding=1),
@@ -65,8 +46,9 @@ class CNN(Module):
             Linear(8, 3),
         )
 
-    def forward(self, x, mask):
-        feature_map = self.cnn_layers(x)
-        feature_map_squeezed = feature_map.reshape((x.shape[0], -1))
-        feature_map_final = self.linear_layers(feature_map_squeezed)
-        return feature_map_final * mask
+    def forward(self, state, distribution_direction):
+        feature_map = self.cnn_layers(state)
+        feature_map_squeezed = feature_map.reshape((state.shape[0], -1))
+        feature_map_direction = torch.cat([feature_map_squeezed, distribution_direction], dim=1)
+        feature_map_final = self.linear_layers(feature_map_direction)
+        return feature_map_final
