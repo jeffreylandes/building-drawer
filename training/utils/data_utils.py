@@ -20,6 +20,12 @@ class BBox:
     lon_max: float
 
 
+def dist(a, b):
+    x_src, y_src = a
+    x_dst, y_dst = b
+    return np.sqrt((x_src - x_dst) ** 2 + (y_src - y_dst) ** 2)
+
+
 def get_corner_points(bounding_box: BBox) -> List[Point]:
     corner_points = [
         Point(bounding_box.lat_min, bounding_box.lon_min),

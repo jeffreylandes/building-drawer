@@ -16,7 +16,6 @@ notebook = "*"
 jupyterlab = "*"
 matplotlib = "*"
 ipykernel = "*"
-yoyo-migrations = "*"
 
 [requires]
-python_version = "3.9"
+python_version = "3.7"

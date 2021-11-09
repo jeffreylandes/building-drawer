@@ -56,7 +56,7 @@ class CNN(Module):
         )
 
         self.linear_layers = Sequential(
-            Linear(1152, 128),
+            Linear(288, 128),
             ReLU(),
             Linear(128, 32),
             ReLU(),
