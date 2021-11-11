@@ -16,7 +16,7 @@ from training.utils.data_utils import (
 
 
 class BuildingData(Dataset):
-    def __init__(self, path="/app/data/sample/sample.shp"):
+    def __init__(self, path="data/sample/sample.shp"):
 
         self.data = gpd.read_file(path)
         print("Loaded geopandas dataset")
@@ -91,8 +91,8 @@ class BuildingData(Dataset):
 
         data_item = {
             "site": site.astype(np.float32),
-            "distance": float(distance_normalized),
-            "direction": float(standardized_direction),
+            "distance": np.array([float(distance_normalized)]).astype(np.float32),
+            "direction": np.array([float(standardized_direction)]).astype(np.float32),
             "target_mask": mask.astype(np.float32),
         }
 

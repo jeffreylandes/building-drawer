@@ -37,18 +37,20 @@ class CriticDirection(Module):
         )
 
         self.linear_layers = Sequential(
-            Linear(288, 128),
+            Linear(291, 128),
             ReLU(),
             Linear(128, 32),
             ReLU(),
             Linear(32, 8),
             ReLU(),
-            Linear(8, 3),
+            Linear(8, 1),
         )
 
     def forward(self, state, distribution_direction):
         feature_map = self.cnn_layers(state)
         feature_map_squeezed = feature_map.reshape((state.shape[0], -1))
-        feature_map_direction = torch.cat([feature_map_squeezed, distribution_direction], dim=1)
+        feature_map_direction = torch.cat(
+            [feature_map_squeezed, distribution_direction], dim=1
+        )
         feature_map_final = self.linear_layers(feature_map_direction)
         return feature_map_final

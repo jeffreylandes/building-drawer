@@ -1,4 +1,4 @@
-from torch.nn import Module, Sequential, ReLU, MaxPool2d, Linear
+from torch.nn import Module, Sequential, ReLU, MaxPool2d, Linear, Tanh
 
 from training.model.layers import CNNBlock
 
@@ -43,6 +43,7 @@ class ActorDirection(Module):
             Linear(32, 8),
             ReLU(),
             Linear(8, 3),
+            Tanh(),
         )
 
     def forward(self, state, mask):

@@ -13,7 +13,10 @@ def train(parameters):
 
     data = BuildingData()
     dataloader = DataLoader(
-        data, batch_size=parameters.batch_size, shuffle=True, num_workers=NUM_DATA_WORKERS
+        data,
+        batch_size=parameters.batch_size,
+        shuffle=True,
+        num_workers=NUM_DATA_WORKERS,
     )
 
     criterion = MSELoss()
@@ -34,19 +37,52 @@ def train(parameters):
             prediction_action_direction = actor_direction.model(site, mask)
             prediction_action_distance = actor_distance.model(site, direction)
 
-            prediction_critic_direction = critic_direction.model(site, prediction_action_direction)
-            prediction_critic_distance = critic_direction.model(site, direction, prediction_action_distance)
+            # Predicted reward
+            prediction_critic_direction = critic_direction.model(
+                site, prediction_action_direction
+            )
+            prediction_critic_distance = critic_distance.model(
+                site, direction, prediction_action_distance
+            )
 
+            # Actual reward
             reward_direction = get_reward(prediction_action_direction, direction)
             reward_distance = get_reward(prediction_action_distance, distance)
 
-            loss_critic_direction = criterion(reward_direction, prediction_critic_direction)
-            loss_critic_distance = criterion(reward_distance, prediction_critic_distance)
+            # Critic loss
+            loss_critic_direction = criterion(
+                reward_direction, prediction_critic_direction
+            )
+            loss_critic_distance = criterion(
+                reward_distance, prediction_critic_distance
+            )
 
+            # Critic updates
             update_network(critic_direction, loss_critic_direction)
             update_network(critic_distance, loss_critic_distance)
 
-            # TODO: Update actor according to sampled policy gradient
+            # Actor updates
+            actor_direction_loss = critic_direction.model(
+                site, actor_direction.model(site, mask)
+            ).mean()
+
+            actor_direction.optimizer.zero_grad()
+            actor_direction_loss.backward()
+            actor_direction.optimizer.step()
+
+            actor_distance_loss = critic_distance.model(
+                site, direction, actor_distance.model(site, direction)
+            ).mean()
+
+            actor_distance.optimizer.zero_grad()
+            actor_distance_loss.backward()
+            actor_distance.optimizer.step()
+
+            print("****")
+            print(loss_critic_distance.item())
+            print(loss_critic_direction.item())
+            print(actor_distance_loss.item())
+            print(actor_direction_loss.item())
 
 
 if __name__ == "__main__":
@@ -54,7 +90,7 @@ if __name__ == "__main__":
 
     parser = ArgumentParser()
     parser.add_argument("--num_epochs", type=int, default=1)
-    parser.add_argument("--batch_size", type=int, default=3)
+    parser.add_argument("--batch_size", type=int, default=1)
     parser.add_argument("--log_interval", type=int, default=35)
     parser.add_argument("--learning_rate", type=float, default=0.001)
     opt = parser.parse_args()

@@ -37,18 +37,20 @@ class CriticDistance(Module):
         )
 
         self.linear_layers = Sequential(
-            Linear(288, 128),
+            Linear(292, 128),
             ReLU(),
             Linear(128, 32),
             ReLU(),
             Linear(32, 8),
             ReLU(),
-            Linear(8, 3),
+            Linear(8, 1),
         )
 
     def forward(self, state, direction, distribution_distance):
         feature_map = self.cnn_layers(state)
         feature_map_squeezed = feature_map.reshape((state.shape[0], -1))
-        feature_map_actions = torch.cat([feature_map_squeezed, direction, distribution_distance], dim=1)
+        feature_map_actions = torch.cat(
+            [feature_map_squeezed, direction, distribution_distance], dim=1
+        )
         feature_map_final = self.linear_layers(feature_map_actions)
         return feature_map_final

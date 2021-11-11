@@ -1,5 +1,5 @@
 import torch
-from torch.nn import Module, Sequential, ReLU, MaxPool2d, Linear
+from torch.nn import Module, Sequential, ReLU, MaxPool2d, Linear, Tanh
 
 from training.model.layers import CNNBlock
 
@@ -37,13 +37,14 @@ class ActorDistance(Module):
         )
 
         self.linear_layers = Sequential(
-            Linear(288, 128),
+            Linear(289, 128),
             ReLU(),
             Linear(128, 32),
             ReLU(),
             Linear(32, 8),
             ReLU(),
             Linear(8, 3),
+            Tanh(),
         )
 
     def forward(self, state, direction):
